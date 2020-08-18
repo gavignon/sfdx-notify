@@ -1,0 +1,6 @@
+{
+  "commandDescription": "Notify Salesforce Deployment to Microsoft Teams",
+  "urlFlagDescription": "target URL (for Microsoft Teams: Webhook URL)",
+  "envFlagDescription": "Name of the target environment",
+  "branchFlagDescription": "Current Branch name, for Bitbucket use the environment variable $BITBUCKET_BRANCH"
+}
