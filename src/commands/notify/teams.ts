@@ -27,7 +27,7 @@ export default class Teams extends SfdxCommand {
   public static description = messages.getMessage('commandDescription');
 
   public static examples = [
-  `$ sfdx notify:teams -u https://outlook.office.com/webhook/WEBHOOK_URL -e UAT -b $BITBUCKET_BRANCH
+  `$ sfdx notify:teams --from 5.0 --to HEAD -u https://outlook.office.com/webhook/WEBHOOK_URL -e UAT -b $BITBUCKET_BRANCH
   Notify deployment status on Microsoft Teams... Done!
   `
   ];
@@ -37,7 +37,9 @@ export default class Teams extends SfdxCommand {
   protected static flagsConfig = {
     url: flags.string({char: 'u', description: messages.getMessage('urlFlagDescription')}),
     env: flags.string({char: 'e', description: messages.getMessage('envFlagDescription')}),
-    branch: flags.string({char: 'b', description: messages.getMessage('branchFlagDescription')})
+    branch: flags.string({char: 'b', description: messages.getMessage('branchFlagDescription')}),
+    from: flags.string({char: 'f', description: messages.getMessage('fromFlagDescription')}),
+    to: flags.string({char: 't', description: messages.getMessage('toFlagDescription')})
   };
 
   // Comment this out if your command does not require an org username
@@ -52,7 +54,7 @@ export default class Teams extends SfdxCommand {
   public async run(): Promise<AnyJson> {
     const { stdout: log } = childProcess.spawnSync(
       'git',
-      ['log', '5.0..HEAD', '--oneline'],
+      ['log', this.flags.from + '..' + this.flags.to, '--oneline'],
       { cwd: '/Users/gavignon/dev/CMA CGM/Git', encoding: 'utf8' }
     );
 
