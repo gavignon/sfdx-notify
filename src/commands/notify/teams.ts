@@ -1,6 +1,6 @@
 const childProcess = require('child_process')
 import { flags, SfdxCommand } from '@salesforce/command';
-import { Messages, SfdxError } from '@salesforce/core';
+import { Messages } from '@salesforce/core';
 import { AnyJson } from '@salesforce/ts-types';
 import { HttpClient } from '../../utils/HttpClient';
 
@@ -10,6 +10,17 @@ Messages.importMessagesDirectory(__dirname);
 // Load the specific messages for this file. Messages from @salesforce/command, @salesforce/core,
 // or any library that is using the messages framework can also be loaded this way.
 const messages = Messages.loadMessages('sfdx-notify', 'teams');
+
+interface Item {
+  number?: string,
+  name?: string,
+  type?: string
+}
+
+interface Fact {
+  name?: string,
+  value?: string
+}
 
 export default class Teams extends SfdxCommand {
 
@@ -21,7 +32,7 @@ export default class Teams extends SfdxCommand {
   `
   ];
 
-  public static args = [{}];
+  public static args = [{name: 'Notify'}];
 
   protected static flagsConfig = {
     url: flags.string({char: 'u', description: messages.getMessage('urlFlagDescription')}),
@@ -56,7 +67,7 @@ export default class Teams extends SfdxCommand {
       match = match.replace('[ci skip]','');
       let matchParts = match.split('/');
 
-      let item = {};
+      let item: Item = {};
       
       item.number = matchParts[0] !== undefined ? matchParts[0].trim() : '';
       item.name = matchParts[2] !== undefined ? matchParts[2].trim() : '';
@@ -77,28 +88,27 @@ export default class Teams extends SfdxCommand {
     let firstDefect = true;
 
     for(let feature of features){
-        let fact = {};
-        fact.name = '';
-        if(firstFeature){
-            fact.name = 'User Stories:';
-        }
-        fact.value = '**' + feature.number + '** - ' + feature.name;
-        facts.push(fact);
+      let fact: Fact = {};
+      fact.name = '';
+      if(firstFeature){
+          fact.name = 'User Stories:';
+      }
+      fact.value = '**' + feature.number + '** - ' + feature.name;
+      facts.push(fact);
 
-        firstFeature = false;
-
+      firstFeature = false;
     }
 
     for(let fix of fixes){
-        let fact = {};
-        fact.name = '';
-        if(firstDefect){
-            fact.name = 'Defects:';
-        }
-        fact.value = '**' + fix.number + '** - ' + fix.name;
-        facts.push(fact);
+      let fact: Fact = {};
+      fact.name = '';
+      if(firstDefect){
+          fact.name = 'Defects:';
+      }
+      fact.value = '**' + fix.number + '** - ' + fix.name;
+      facts.push(fact);
 
-        firstDefect = false;
+      firstDefect = false;
     }
 
     let data = 
@@ -118,7 +128,6 @@ export default class Teams extends SfdxCommand {
     this.ux.startSpinner('Notify deployment status on Microsoft Teams');
     await HttpClient.sendRequest(this.flags.url, data);
     this.ux.stopSpinner('Done!');
-
 
     // Return an object to be displayed with --json
     return data;
