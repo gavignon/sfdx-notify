@@ -35,6 +35,7 @@ export default class Teams extends SfdxCommand {
   public static args = [{name: 'Notify'}];
 
   protected static flagsConfig = {
+    'path': flags.string({char: 'p', description: messages.getMessage('pathFlagDescription')}),
     url: flags.string({char: 'u', description: messages.getMessage('urlFlagDescription')}),
     env: flags.string({char: 'e', description: messages.getMessage('envFlagDescription')}),
     branch: flags.string({char: 'b', description: messages.getMessage('branchFlagDescription')}),
@@ -52,11 +53,41 @@ export default class Teams extends SfdxCommand {
   protected static requiresProject = false;
 
   public async run(): Promise<AnyJson> {
-    const { stdout: log } = childProcess.spawnSync(
+
+    if(this.flags.path === undefined){
+      this.ux.warn('Path parameter is empty, using "." instead.');
+      this.flags.path = '.';
+    }
+    if(this.flags.to === undefined){
+      this.ux.warn('To parameter is empty, using "HEAD" instead.');
+      this.flags.to = 'HEAD';
+    }
+    if(this.flags.env === undefined){
+      this.ux.warn('Env parameter is empty, using "current environment" instead.');
+      this.flags.env = 'current environment';
+    }
+    if(this.flags.branch === undefined){
+      this.ux.warn('Branch parameter is empty, using "Current branch" instead.');
+      this.flags.branch = 'Current branch';
+    }
+
+    if(this.flags.url === undefined || this.flags.from === undefined || this.flags.to === undefined){
+      throw new Error(
+        'One (or more) of the mandatory parameters is missing (url/from/to/branch)'
+      );
+    }
+
+    const { stdout: log, stderr: err } = childProcess.spawnSync(
       'git',
       ['log', this.flags.from + '..' + this.flags.to, '--oneline'],
-      { cwd: '/Users/gavignon/dev/CMA CGM/Git', encoding: 'utf8' }
+      { cwd: this.flags.path, encoding: 'utf8' }
     );
+
+    if(err != ''){
+      throw new Error(
+        'Git log didn\'t return anything. \Error: ' + err
+      );
+    }
 
     let pattern = /[0-9]{5,} \/ (Feature|Fix).*/g;
     let matches = log.match(pattern);
