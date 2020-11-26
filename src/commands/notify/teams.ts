@@ -169,7 +169,7 @@ export default class Teams extends SfdxCommand {
     };
 
     this.ux.startSpinner('Notify deployment status on Microsoft Teams');
-    //await HttpClient.sendRequest(this.flags.url, data);
+    await HttpClient.sendRequest(this.flags.url, data);
     this.ux.stopSpinner('Done!');
 
     // Return an object to be displayed with --json
