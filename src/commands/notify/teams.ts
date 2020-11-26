@@ -35,12 +35,14 @@ export default class Teams extends SfdxCommand {
   public static args = [{name: 'Notify'}];
 
   protected static flagsConfig = {
-    'path': flags.string({char: 'p', description: messages.getMessage('pathFlagDescription')}),
+    path: flags.string({char: 'p', description: messages.getMessage('pathFlagDescription')}),
     url: flags.string({char: 'u', description: messages.getMessage('urlFlagDescription')}),
     env: flags.string({char: 'e', description: messages.getMessage('envFlagDescription')}),
     branch: flags.string({char: 'b', description: messages.getMessage('branchFlagDescription')}),
     from: flags.string({char: 'f', description: messages.getMessage('fromFlagDescription')}),
-    to: flags.string({char: 't', description: messages.getMessage('toFlagDescription')})
+    to: flags.string({char: 't', description: messages.getMessage('toFlagDescription')}),
+    casesensitive: flags.string({char: 'c', description: messages.getMessage('casesensitiveFlagDescription')}),
+    regex: flags.string({char: 'r', description: messages.getMessage('regexFlagDescription')})
   };
 
   // Comment this out if your command does not require an org username
@@ -89,7 +91,15 @@ export default class Teams extends SfdxCommand {
       );
     }
 
-    let pattern = /[0-9]{5,} \/ (Feature|Fix).*/g;
+    let regexParams = 'g';
+    if(this.flags.casesensitive !== undefined && !this.flags.casesensitive){
+      regexParams += 'i';
+    }
+    let regex = '[0-9]{5,} \\/ (Feature|Fix).*';
+    if(this.flags.regex !== undefined){
+      regex = this.flags.regex;
+    }
+    let pattern = new RegExp(regex, regexParams);
     let matches = log.match(pattern);
 
     // Construct Microsoft Teams Card Data
@@ -159,7 +169,7 @@ export default class Teams extends SfdxCommand {
     };
 
     this.ux.startSpinner('Notify deployment status on Microsoft Teams');
-    await HttpClient.sendRequest(this.flags.url, data);
+    //await HttpClient.sendRequest(this.flags.url, data);
     this.ux.stopSpinner('Done!');
 
     // Return an object to be displayed with --json
