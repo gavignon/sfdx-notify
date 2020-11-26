@@ -41,7 +41,7 @@ export default class Teams extends SfdxCommand {
     branch: flags.string({char: 'b', description: messages.getMessage('branchFlagDescription')}),
     from: flags.string({char: 'f', description: messages.getMessage('fromFlagDescription')}),
     to: flags.string({char: 't', description: messages.getMessage('toFlagDescription')}),
-    casesensitive: flags.string({char: 'c', description: messages.getMessage('casesensitiveFlagDescription')}),
+    casesensitive: flags.boolean({char: 'c', description: messages.getMessage('casesensitiveFlagDescription')}),
     regex: flags.string({char: 'r', description: messages.getMessage('regexFlagDescription')})
   };
 
