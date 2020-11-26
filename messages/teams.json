@@ -6,6 +6,6 @@
   "fromFlagDescription": "From tag, to generate the list of commit",
   "toFlagDescription": "To tag, to generate the list of commit (\"HEAD\" by default)",
   "branchFlagDescription": "Current Branch name (can use environment variable name, \"Current branch\" by default)",
-  "casesensitiveFlagDescription": "Case Sensitive (true or false, true by default)",
+  "casesensitiveFlagDescription": "Case Sensitive (true or false, false by default)",
   "regexFlagDescription": "Regex to match commits (\"[0-9]{5,} \\/ (Feature|Fix).*\" by default)"
 }

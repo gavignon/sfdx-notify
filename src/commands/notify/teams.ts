@@ -35,8 +35,8 @@ export default class Teams extends SfdxCommand {
   public static args = [{name: 'Notify'}];
 
   protected static flagsConfig = {
-    path: flags.string({char: 'p', description: messages.getMessage('pathFlagDescription')}),
-    url: flags.string({char: 'u', description: messages.getMessage('urlFlagDescription')}),
+    path: flags.directory({char: 'p', description: messages.getMessage('pathFlagDescription')}),
+    url: flags.url({char: 'u', description: messages.getMessage('urlFlagDescription')}),
     env: flags.string({char: 'e', description: messages.getMessage('envFlagDescription')}),
     branch: flags.string({char: 'b', description: messages.getMessage('branchFlagDescription')}),
     from: flags.string({char: 'f', description: messages.getMessage('fromFlagDescription')}),
@@ -55,7 +55,6 @@ export default class Teams extends SfdxCommand {
   protected static requiresProject = false;
 
   public async run(): Promise<AnyJson> {
-
     if(this.flags.path === undefined){
       this.ux.warn('Path parameter is empty, using "." instead.');
       this.flags.path = '.';
@@ -71,6 +70,9 @@ export default class Teams extends SfdxCommand {
     if(this.flags.branch === undefined){
       this.ux.warn('Branch parameter is empty, using "Current branch" instead.');
       this.flags.branch = 'Current branch';
+    }
+    if(this.flags.casesensitive === undefined){
+      this.flags.casesensitive = false;
     }
 
     if(this.flags.url === undefined || this.flags.from === undefined || this.flags.to === undefined){
@@ -91,14 +93,15 @@ export default class Teams extends SfdxCommand {
       );
     }
 
-    let regexParams = 'g';
-    if(this.flags.casesensitive !== undefined && !this.flags.casesensitive){
-      regexParams += 'i';
+    let regexParams = 'gi';
+    if(this.flags.casesensitive !== undefined && this.flags.casesensitive){
+      regexParams = 'g';
     }
     let regex = '[0-9]{5,} \\/ (Feature|Fix).*';
     if(this.flags.regex !== undefined){
       regex = this.flags.regex;
     }
+
     let pattern = new RegExp(regex, regexParams);
     let matches = log.match(pattern);
 
@@ -117,7 +120,7 @@ export default class Teams extends SfdxCommand {
       item.type = 'fix'; // Default value
 
       if(matchParts[1] !== undefined){
-        if(matchParts[1].includes('Feature')){
+        if(matchParts[1].toUpperCase().includes('FEATURE')){
           item.type = 'feature';
           features.push(item);
         }else{
@@ -169,7 +172,7 @@ export default class Teams extends SfdxCommand {
     };
 
     this.ux.startSpinner('Notify deployment status on Microsoft Teams');
-    await HttpClient.sendRequest(this.flags.url, data);
+    await HttpClient.sendRequest(this.flags.url.toString(), data);
     this.ux.stopSpinner('Done!');
 
     // Return an object to be displayed with --json
