@@ -3,6 +3,8 @@ import { flags, SfdxCommand } from '@salesforce/command';
 import { Messages } from '@salesforce/core';
 import { AnyJson } from '@salesforce/ts-types';
 import { HttpClient } from '../../utils/HttpClient';
+import { Repository } from '../../utils/Repository';
+import { Parser } from '../../utils/Parser';
 
 // Initialize Messages with the current plugin directory
 Messages.importMessagesDirectory(__dirname);
@@ -24,7 +26,7 @@ interface Fact {
 
 export default class Teams extends SfdxCommand {
 
-  public static description = messages.getMessage('commandDescription');
+  public static description = messages.getMessage('teamsDiffDescription');
 
   public static examples = [
   `$ sfdx notify:teams --from 5.0 --to HEAD -u https://outlook.office.com/webhook/WEBHOOK_URL -e UAT -b $BITBUCKET_BRANCH
@@ -105,77 +107,82 @@ export default class Teams extends SfdxCommand {
     let pattern = new RegExp(regex, regexParams);
     let matches = log.match(pattern);
 
-    // Construct Microsoft Teams Card Data
-    let features = new Array();
-    let fixes = new Array();
-    for(let match of matches){
-      // Remove technical tags
-      match = match.replace('[ci skip]','');
-      let matchParts = match.split('/');
+    if(matches == null){
+      this.ux.warn('No element in the Git Diff matches the regex');
+    }else{
+      // Construct Microsoft Teams Card Data
+      let features = new Array();
+      let fixes = new Array();
+      for(let match of matches){
+        // Remove technical tags
+        match = match.replace('[ci skip]','');
+        let matchParts = match.split('/');
 
-      let item: Item = {};
-      
-      item.number = matchParts[0] !== undefined ? matchParts[0].trim() : '';
-      item.name = matchParts[2] !== undefined ? matchParts[2].trim() : '';
-      item.type = 'fix'; // Default value
+        let item: Item = {};
+        
+        item.number = matchParts[0] !== undefined ? matchParts[0].trim() : '';
+        item.name = matchParts[2] !== undefined ? matchParts[2].trim() : '';
+        item.type = 'fix'; // Default value
 
-      if(matchParts[1] !== undefined){
-        if(matchParts[1].toUpperCase().includes('FEATURE')){
-          item.type = 'feature';
-          features.push(item);
-        }else{
-          fixes.push(item);
+        if(matchParts[1] !== undefined){
+          if(matchParts[1].toUpperCase().includes('FEATURE')){
+            item.type = 'feature';
+            features.push(item);
+          }else{
+            fixes.push(item);
+          }
         }
       }
-    }
 
-    let facts = new Array();
-    let firstFeature = true;
-    let firstDefect = true;
+      let facts = new Array();
+      let firstFeature = true;
+      let firstDefect = true;
 
-    for(let feature of features){
-      let fact: Fact = {};
-      fact.name = '';
-      if(firstFeature){
-          fact.name = 'User Stories:';
+      for(let feature of features){
+        let fact: Fact = {};
+        fact.name = '';
+        if(firstFeature){
+            fact.name = 'User Stories:';
+        }
+        fact.value = '**' + feature.number + '** - ' + feature.name;
+        facts.push(fact);
+
+        firstFeature = false;
       }
-      fact.value = '**' + feature.number + '** - ' + feature.name;
-      facts.push(fact);
 
-      firstFeature = false;
-    }
+      for(let fix of fixes){
+        let fact: Fact = {};
+        fact.name = '';
+        if(firstDefect){
+            fact.name = 'Defects:';
+        }
+        fact.value = '**' + fix.number + '** - ' + fix.name;
+        facts.push(fact);
 
-    for(let fix of fixes){
-      let fact: Fact = {};
-      fact.name = '';
-      if(firstDefect){
-          fact.name = 'Defects:';
+        firstDefect = false;
       }
-      fact.value = '**' + fix.number + '** - ' + fix.name;
-      facts.push(fact);
 
-      firstDefect = false;
+      let data = 
+      {
+          "@type": "MessageCard",
+          "@context": "http://schema.org/extensions",
+          "themeColor": "0076D7",
+          "summary": this.flags.branch + " deployed",
+          "sections": [{
+              "activityTitle": this.flags.branch + " deployed",
+              "activitySubtitle": "on " + this.flags.env,
+              "facts": facts,
+              "markdown": true
+          }]
+      };
+
+      this.ux.startSpinner('Notify deployment status on Microsoft Teams');
+      await HttpClient.sendRequest(this.flags.url.toString(), data);
+      this.ux.stopSpinner('Done!');
+
+      // Return an object to be displayed with --json
+      return data;
     }
-
-    let data = 
-    {
-        "@type": "MessageCard",
-        "@context": "http://schema.org/extensions",
-        "themeColor": "0076D7",
-        "summary": this.flags.branch + " deployed",
-        "sections": [{
-            "activityTitle": this.flags.branch + " deployed",
-            "activitySubtitle": "on " + this.flags.env,
-            "facts": facts,
-            "markdown": true
-        }]
-    };
-
-    this.ux.startSpinner('Notify deployment status on Microsoft Teams');
-    await HttpClient.sendRequest(this.flags.url.toString(), data);
-    this.ux.stopSpinner('Done!');
-
-    // Return an object to be displayed with --json
-    return data;
+    return null;
   }
 }
