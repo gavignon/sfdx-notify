@@ -24,7 +24,7 @@ interface Fact {
 
 export default class Teams extends SfdxCommand {
 
-  public static description = messages.getMessage('teamsDiffDescription');
+  public static description = messages.getMessage('commandDescription');
 
   public static examples = [
   `$ sfdx notify:teams --from 5.0 --to HEAD -u https://outlook.office.com/webhook/WEBHOOK_URL -e UAT -b $BITBUCKET_BRANCH
