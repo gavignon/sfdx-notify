@@ -1,7 +1,7 @@
 import { flags, SfdxCommand } from '@salesforce/command';
 import { Messages } from '@salesforce/core';
 import { AnyJson } from '@salesforce/ts-types';
-import { readFile } from 'fs/promises';
+import { readFile } from 'fs-extra';
 import { HttpClient } from '../../../utils/HttpClient';
 
 // Initialize Messages with the current plugin directory
@@ -10,12 +10,6 @@ Messages.importMessagesDirectory(__dirname);
 // Load the specific messages for this file. Messages from @salesforce/command, @salesforce/core,
 // or any library that is using the messages framework can also be loaded this way.
 const messages = Messages.loadMessages('sfdx-notify', 'teams');
-
-interface Item {
-  number?: string,
-  name?: string,
-  type?: string
-}
 
 interface Fact {
   name?: string,
@@ -119,7 +113,7 @@ export default class Teams extends SfdxCommand {
         };
 
         this.ux.startSpinner('Notify deployment status on Microsoft Teams');
-        let requestResult = await HttpClient.sendRequest(this.flags.url.toString(), data);
+        await HttpClient.sendRequest(this.flags.url.toString(), data);
         this.ux.stopSpinner('Done!');
 
         // Return an object to be displayed with --json

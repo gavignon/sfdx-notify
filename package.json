@@ -1,6 +1,6 @@
 {
   "name": "sfdx-notify",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "author": "Gil Avignon",
   "bugs": "https://github.com/gavignon/sfdx-notify/issues",
   "dependencies": {
@@ -20,7 +20,7 @@
     "@salesforce/dev-config": "1.4.1",
     "@types/chai": "^4",
     "@types/mocha": "^5",
-    "@types/node": "^10",
+    "@types/node": "^10.17.60",
     "chai": "^4",
     "globby": "^8",
     "mocha": "^5",
