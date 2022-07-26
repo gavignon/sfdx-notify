@@ -104,7 +104,7 @@ export default class Teams extends SfdxCommand {
 
           // Generate URLs
           let coverageToReviewUrl = this.flags.storageurl.toString().concat(badCoverageFilePath);
-          let goodCoverageUrl = this.flags.storageurl.toString().concat(badCoverageFilePath);
+          let goodCoverageUrl = this.flags.storageurl.toString().concat(goodCoverageFilePath);
 
           let data = 
           {
