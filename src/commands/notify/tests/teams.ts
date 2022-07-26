@@ -13,11 +13,6 @@ Messages.importMessagesDirectory(__dirname);
 // or any library that is using the messages framework can also be loaded this way.
 const messages = Messages.loadMessages('sfdx-notify', 'teams');
 
-interface Fact {
-  name?: string,
-  value?: string
-}
-
 export default class Teams extends SfdxCommand {
 
   public static description = messages.getMessage('commandDescription');
