@@ -4,7 +4,6 @@ import { AnyJson } from '@salesforce/ts-types';
 import { readFile, writeFile } from 'fs-extra';
 import { HttpClient } from '../../../utils/HttpClient';
 import * as path from 'path'; 
-import * as textTable from 'text-table';
 
 // Initialize Messages with the current plugin directory
 Messages.importMessagesDirectory(__dirname);
@@ -28,6 +27,7 @@ export default class Teams extends SfdxCommand {
   protected static flagsConfig = {
     path: flags.directory({char: 'p', description: messages.getMessage('pathFlagDescription')}),
     output: flags.url({char: 'o', description: messages.getMessage('outputFlagDescription')}),
+    outputformat: flags.url({char: 'f', description: messages.getMessage('outputFormatFlagDescription')}),
     storageurl: flags.url({char: 's', description: messages.getMessage('storageUrlFlagDescription')}),
     url: flags.url({char: 'u', description: messages.getMessage('urlFlagDescription')}),
     env: flags.string({char: 'e', description: messages.getMessage('envFlagDescription')})
@@ -38,6 +38,29 @@ export default class Teams extends SfdxCommand {
 
   // Comment this out if your command does not support a hub org username
   protected static supportsDevhubUsername = false;
+
+  private async generateCSVFiles(failedTests, coverageData, failTestCsvPath, badCoverageFilePath, goodCoverageFilePath){
+    let failCsvContent = '"Failed Test","Error"\n';
+    let coverageHeader = '"Apex Class","Coverage (%)"\n';
+    
+    for(let test of failedTests){
+      failCsvContent += '"' + test.FullName + '","' + test.Message + '\n' + test.StackTrace + '"\n';
+    }
+
+    await writeFile(failTestCsvPath, failCsvContent);
+
+    let goodCoverageContent = coverageHeader;
+    let badCoverageContent = coverageHeader;
+    for(let coverage of coverageData){
+      if(coverage.coveredPercent >= 85){
+        goodCoverageContent += '"' + coverage.name + '","' + coverage.coveredPercent + '"\n';
+      }else{
+        badCoverageContent += '"' + coverage.name + '","' + coverage.coveredPercent + '"\n';
+      }
+    }
+    await writeFile(goodCoverageFilePath, goodCoverageContent);
+    await writeFile(badCoverageFilePath, badCoverageContent);
+  }
 
   // Set this to true if your command requires a project workspace; 'requiresProject' is false by default
   protected static requiresProject = false;
@@ -54,6 +77,10 @@ export default class Teams extends SfdxCommand {
         if(this.flags.output === undefined){
           this.ux.warn('output parameter is empty, using "./output" instead.');
           this.flags.output = './output';
+        }
+        if(this.flags.outputformat === undefined){
+          this.ux.warn('outputformat parameter is empty, using "csv" instead.');
+          this.flags.outputformat = 'csv';
         }
 
         if(this.flags.url === undefined || this.flags.storageurl === undefined){
@@ -77,32 +104,55 @@ export default class Teams extends SfdxCommand {
                               + '\n\n' + '<strong>Tests Passed: </strong>' + testResult.result.summary.passing + ' (' + testResult.result.summary.passRate + ')'
                               + '\n\n' + '<strong>Tests Failed: </strong>' + testResult.result.summary.failing + ' (' + testResult.result.summary.failRate + ')';
 
-          let goodCoverageClasses = new Array();
-          let badCoverageClasses = new Array();
+          let failedTests = new Array();
+          let coverageApexClasses = testResult.result.coverage.coverage;
 
-          for(let coverage of testResult.result.coverage.coverage){
-              let item = [ coverage.name, coverage.coveredPercent + '%'];
-
-              if(coverage.coveredPercent >= 85){
-                goodCoverageClasses.push(item);
-              }else{
-                badCoverageClasses.push(item);
-              }
+          for(let test of testResult.result.tests){
+            if(test.Outcome == 'Fail' || test.Outcome == 'CompileFail'){
+              failedTests.push(test);
+            }
           }
-
-          // Sort files
-          goodCoverageClasses.sort();
-          badCoverageClasses.sort();
 
           // Create files
           this.ux.startSpinner('Generate coverage files');
-          let goodCoverageFilePath = path.join(this.flags.output, 'goodCoverage.txt');
-          let badCoverageFilePath = path.join(this.flags.output, 'badCoverage.txt');
-          await writeFile(goodCoverageFilePath, textTable(goodCoverageClasses));
-          await writeFile(badCoverageFilePath, textTable(badCoverageClasses));
+
+          // Sort
+          failedTests.sort((obj1, obj2) => {
+            if (obj1.FullName > obj2.FullName) {
+                return 1;
+            }if (obj1.FullName < obj2.FullName) {
+                return -1;
+            }
+            return 0;
+          });
+          coverageApexClasses.sort((obj1, obj2) => {
+            if (obj1.FullName > obj2.FullName) {
+                return 1;
+            }if (obj1.FullName < obj2.FullName) {
+                return -1;
+            }
+            return 0;
+          });
+
+          let failTestFilePath = path.join(this.flags.output, 'failedTest.' + this.flags.outputformat);
+          let goodCoverageFilePath = path.join(this.flags.output, 'goodCoverage.' + this.flags.outputformat);
+          let badCoverageFilePath = path.join(this.flags.output, 'badCoverage.' + this.flags.outputformat);
+
+          switch(this.flags.outputformat) { 
+            case 'html': { 
+              // TODO: HTML Rendering
+              // await this.generateCSVFiles(failedTests, coverageApexClasses, failTestCsvPath, goodCoverageFilePath, badCoverageFilePath);
+              break; 
+            } 
+            default: { 
+              await this.generateCSVFiles(failedTests, coverageApexClasses, failTestFilePath, goodCoverageFilePath, badCoverageFilePath);
+              break; 
+            } 
+          } 
           this.ux.stopSpinner('Done!');
 
           // Generate URLs
+          let failedTestsUrl = this.flags.storageurl.toString().concat(failTestFilePath);
           let coverageToReviewUrl = this.flags.storageurl.toString().concat(badCoverageFilePath);
           let goodCoverageUrl = this.flags.storageurl.toString().concat(goodCoverageFilePath);
 
@@ -118,22 +168,29 @@ export default class Teams extends SfdxCommand {
                   "markdown": true
               }],
               "potentialAction": [
-                  {
+                {
+                  "@type": "OpenUri",
+                  "name": "Failed Tests",
+                  "targets": [{
+                      "os": "default",
+                      "uri": failedTestsUrl
+                  }]
+                }, {
                       "@type": "OpenUri",
                       "name": "Coverage to review",
                       "targets": [{
                           "os": "default",
                           "uri": coverageToReviewUrl
                       }]
-                  },
-                  {
-                      "@type": "OpenUri",
-                      "name": "Good Coverage (>= 85%)",
-                      "targets": [{
-                          "os": "default",
-                          "uri": goodCoverageUrl
-                      }]
-                  }
+                },
+                {
+                    "@type": "OpenUri",
+                    "name": "Good Coverage (>= 85%)",
+                    "targets": [{
+                        "os": "default",
+                        "uri": goodCoverageUrl
+                    }]
+                }
               ]
           };
 

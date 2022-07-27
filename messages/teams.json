@@ -2,6 +2,7 @@
   "pathFlagDescription": "Repository Path (\".\" by default)",
   "commandDescription": "Notify Salesforce Deployment to Microsoft Teams",
   "outputFlagDescription": "Output path. Folder where the coverage files are created",
+  "outputFormatFlagDescription": "Output format. Output format (html,csv), 'csv' by default.",
   "storageUrlFlagDescription": "Storage URL. URL where the files will be store (ex: https://gitlab.com/project/-/jobs/XXXX/artifacts/file)",
   "urlFlagDescription": "target URL (for Microsoft Teams: Webhook URL)",
   "envFlagDescription": "Name of the target environment (\"current environment\" by default)",

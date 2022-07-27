@@ -1,6 +1,6 @@
 {
   "name": "sfdx-notify",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "author": "Gil Avignon",
   "bugs": "https://github.com/gavignon/sfdx-notify/issues",
   "dependencies": {
@@ -11,7 +11,6 @@
     "@salesforce/core": "^2",
     "axios": "^0.19.2",
     "fs-extra": "^10.0.1",
-    "text-table": "^0.2.0",
     "tslib": "^1"
   },
   "devDependencies": {
