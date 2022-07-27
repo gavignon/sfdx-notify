@@ -26,9 +26,10 @@ export default class Teams extends SfdxCommand {
 
   protected static flagsConfig = {
     path: flags.directory({char: 'p', description: messages.getMessage('pathFlagDescription')}),
-    output: flags.url({char: 'o', description: messages.getMessage('outputFlagDescription')}),
-    outputformat: flags.url({char: 'f', description: messages.getMessage('outputFormatFlagDescription')}),
-    storageurl: flags.url({char: 's', description: messages.getMessage('storageUrlFlagDescription')}),
+    output: flags.string({char: 'o', description: messages.getMessage('outputFlagDescription')}),
+    outputformat: flags.string({char: 'f', description: messages.getMessage('outputFormatFlagDescription')}),
+    separator: flags.string({char: 's', description: messages.getMessage('separatorFlagDescription')}),
+    hosturl: flags.url({char: 'h', description: messages.getMessage('hostUrlFlagDescription')}),
     url: flags.url({char: 'u', description: messages.getMessage('urlFlagDescription')}),
     env: flags.string({char: 'e', description: messages.getMessage('envFlagDescription')})
   };
@@ -40,11 +41,11 @@ export default class Teams extends SfdxCommand {
   protected static supportsDevhubUsername = false;
 
   private async generateCSVFiles(failedTests, coverageData, failTestCsvPath, badCoverageFilePath, goodCoverageFilePath){
-    let failCsvContent = '"Failed Test","Error"\n';
-    let coverageHeader = '"Apex Class","Coverage (%)"\n';
+    let failCsvContent = '"Failed Test"' + this.flags.separator + '"Error"\n';
+    let coverageHeader = '"Apex Class"' + this.flags.separator + '"Coverage (%)"\n';
     
     for(let test of failedTests){
-      failCsvContent += '"' + test.FullName + '","' + test.Message + '\n' + test.StackTrace + '"\n';
+      failCsvContent += '"' + test.FullName + '"' + this.flags.separator + '"' + test.Message + '\n' + test.StackTrace + '"\n';
     }
 
     await writeFile(failTestCsvPath, failCsvContent);
@@ -53,14 +54,38 @@ export default class Teams extends SfdxCommand {
     let badCoverageContent = coverageHeader;
     for(let coverage of coverageData){
       if(coverage.coveredPercent >= 85){
-        goodCoverageContent += '"' + coverage.name + '","' + coverage.coveredPercent + '"\n';
+        goodCoverageContent += '"' + coverage.name + '"' + this.flags.separator + '"' + coverage.coveredPercent + '"\n';
       }else{
-        badCoverageContent += '"' + coverage.name + '","' + coverage.coveredPercent + '"\n';
+        badCoverageContent += '"' + coverage.name + '"' + this.flags.separator + '"' + coverage.coveredPercent + '"\n';
       }
     }
     await writeFile(goodCoverageFilePath, goodCoverageContent);
     await writeFile(badCoverageFilePath, badCoverageContent);
   }
+
+  private formatMilliseconds(milliseconds){
+    let seconds = Math.floor((milliseconds / 1000) % 60);
+    let minutes = Math.floor((milliseconds / (1000 * 60)) % 60);
+    let hours = Math.floor((milliseconds / (1000 * 60 * 60)) % 24);
+
+    let finalString = '';
+
+    if(hours > 0){
+        finalString += hours + 'h';
+    }
+    if(minutes > 0){
+        finalString += minutes + 'min';
+    }
+    if(seconds > 0){
+        finalString += seconds + 's';
+    }else{
+        if(milliseconds > 0){
+            finalString += milliseconds + 'ms';
+        }
+    }
+
+    return finalString;
+}
 
   // Set this to true if your command requires a project workspace; 'requiresProject' is false by default
   protected static requiresProject = false;
@@ -78,14 +103,18 @@ export default class Teams extends SfdxCommand {
           this.ux.warn('output parameter is empty, using "./output" instead.');
           this.flags.output = './output';
         }
+        if(this.flags.separator === undefined){
+          this.ux.warn('separator parameter is empty, using ";" instead.');
+          this.flags.separator = ';';
+        }
         if(this.flags.outputformat === undefined){
           this.ux.warn('outputformat parameter is empty, using "csv" instead.');
           this.flags.outputformat = 'csv';
         }
 
-        if(this.flags.url === undefined || this.flags.storageurl === undefined){
+        if(this.flags.url === undefined || this.flags.hosturl === undefined){
             throw new Error(
-            'One (or more) of the mandatory parameters is missing (url, storageUrl)'
+            'One (or more) of the mandatory parameters is missing (url, hosturl)'
             );
         }
 
@@ -97,14 +126,14 @@ export default class Teams extends SfdxCommand {
 
           let statusColor = testResult.result.summary.outcome == 'Passed' ? 'green' : 'red';
           let summaryTitle = 'Test Execution in ' + this.flags.env + ' - ' + testResult.result.summary.testStartTime;
-          let summaryContent = '<strong>TestRunId: </strong>' + testResult.result.summary.testRunId + ' (Execution Time: ' + testResult.result.summary.testExecutionTime + ')'
+          let summaryContent = '<strong>TestRunId: </strong>' + testResult.result.summary.testRunId + ' (Execution Time: ' + this.formatMilliseconds(testResult.result.summary.testExecutionTime.replace(' ms','')) + ')'
                               + '\n\n' + '<strong>Status: </strong><span style="color:' + statusColor + ';">' + testResult.result.summary.outcome + '</span>'
                               + '\n\n' + '<strong>Coverage: </strong>' + testResult.result.summary.testRunCoverage + ' (Test Run Coverage) ' + testResult.result.summary.orgWideCoverage + ' (Org Wide Coverage)'
                               + '\n\n' + '<strong>Tests Ran: </strong>' + testResult.result.summary.testsRan
                               + '\n\n' + '<strong>Tests Passed: </strong>' + testResult.result.summary.passing + ' (' + testResult.result.summary.passRate + ')'
                               + '\n\n' + '<strong>Tests Failed: </strong>' + testResult.result.summary.failing + ' (' + testResult.result.summary.failRate + ')';
 
-          let failedTests = new Array();
+                              let failedTests = new Array();
           let coverageApexClasses = testResult.result.coverage.coverage;
 
           for(let test of testResult.result.tests){

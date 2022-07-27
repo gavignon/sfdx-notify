@@ -1,6 +1,6 @@
 {
   "name": "sfdx-notify",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "author": "Gil Avignon",
   "bugs": "https://github.com/gavignon/sfdx-notify/issues",
   "dependencies": {
