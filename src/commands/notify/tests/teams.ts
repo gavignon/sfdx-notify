@@ -40,7 +40,7 @@ export default class Teams extends SfdxCommand {
   // Comment this out if your command does not support a hub org username
   protected static supportsDevhubUsername = false;
 
-  private async generateCSVFiles(failedTests, coverageData, failTestCsvPath, badCoverageFilePath, goodCoverageFilePath){
+  private async generateCSVFiles(failedTests, coverageData, failTestCsvPath, goodCoverageFilePath, badCoverageFilePath){
     let failCsvContent = '"Failed Test"' + this.flags.separator + '"Error"\n';
     let coverageHeader = '"Apex Class"' + this.flags.separator + '"Coverage (%)"\n';
     
@@ -181,9 +181,9 @@ export default class Teams extends SfdxCommand {
           this.ux.stopSpinner('Done!');
 
           // Generate URLs
-          let failedTestsUrl = this.flags.storageurl.toString().concat(failTestFilePath);
-          let coverageToReviewUrl = this.flags.storageurl.toString().concat(badCoverageFilePath);
-          let goodCoverageUrl = this.flags.storageurl.toString().concat(goodCoverageFilePath);
+          let failedTestsUrl = this.flags.hosturl.toString().concat(failTestFilePath);
+          let coverageToReviewUrl = this.flags.hosturl.toString().concat(badCoverageFilePath);
+          let goodCoverageUrl = this.flags.hosturl.toString().concat(goodCoverageFilePath);
 
           let data = 
           {
@@ -206,7 +206,7 @@ export default class Teams extends SfdxCommand {
                   }]
                 }, {
                       "@type": "OpenUri",
-                      "name": "Coverage to review",
+                      "name": "Coverage < 85%",
                       "targets": [{
                           "os": "default",
                           "uri": coverageToReviewUrl
@@ -214,7 +214,7 @@ export default class Teams extends SfdxCommand {
                 },
                 {
                     "@type": "OpenUri",
-                    "name": "Good Coverage (>= 85%)",
+                    "name": "Coverage >= 85%",
                     "targets": [{
                         "os": "default",
                         "uri": goodCoverageUrl
