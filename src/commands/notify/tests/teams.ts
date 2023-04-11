@@ -45,7 +45,7 @@ export default class Teams extends SfdxCommand {
     let coverageHeader = '"Apex Class"' + this.flags.separator + '"Coverage (%)"\n';
     
     for(let test of failedTests){
-      failCsvContent += '"' + test.FullName + '"' + this.flags.separator + '"' + test.Message + '\n' + test.StackTrace + '"\n';
+      failCsvContent += '"' + test.name + '"' + this.flags.separator + '"' + test.message + '\n' + test.stackTrace + '"\n';
     }
 
     await writeFile(failTestCsvPath, failCsvContent);
@@ -53,10 +53,10 @@ export default class Teams extends SfdxCommand {
     let goodCoverageContent = coverageHeader;
     let badCoverageContent = coverageHeader;
     for(let coverage of coverageData){
-      if(coverage.coveredPercent >= 85){
-        goodCoverageContent += '"' + coverage.name + '"' + this.flags.separator + '"' + coverage.coveredPercent + '"\n';
+      if(coverage.coverage >= 85){
+        goodCoverageContent += '"' + coverage.name + '"' + this.flags.separator + '"' + coverage.coverage + '"\n';
       }else{
-        badCoverageContent += '"' + coverage.name + '"' + this.flags.separator + '"' + coverage.coveredPercent + '"\n';
+        badCoverageContent += '"' + coverage.name + '"' + this.flags.separator + '"' + coverage.coverage + '"\n';
       }
     }
     await writeFile(goodCoverageFilePath, goodCoverageContent);
@@ -124,22 +124,46 @@ export default class Teams extends SfdxCommand {
           let fileContent = await readFile(this.flags.path);
           let testResult = JSON.parse(fileContent);
 
-          let statusColor = testResult.result.summary.outcome == 'Passed' ? 'green' : 'red';
-          let summaryTitle = 'Test Execution in ' + this.flags.env + ' - ' + testResult.result.summary.testStartTime;
-          let summaryContent = '<strong>TestRunId: </strong>' + testResult.result.summary.testRunId + ' (Execution Time: ' + this.formatMilliseconds(testResult.result.summary.testExecutionTime.replace(' ms','')) + ')'
-                              + '\n\n' + '<strong>Status: </strong><span style="color:' + statusColor + ';">' + testResult.result.summary.outcome + '</span>'
-                              + '\n\n' + '<strong>Coverage: </strong>' + testResult.result.summary.testRunCoverage + ' (Test Run Coverage) ' + testResult.result.summary.orgWideCoverage + ' (Org Wide Coverage)'
-                              + '\n\n' + '<strong>Tests Ran: </strong>' + testResult.result.summary.testsRan
-                              + '\n\n' + '<strong>Tests Passed: </strong>' + testResult.result.summary.passing + ' (' + testResult.result.summary.passRate + ')'
-                              + '\n\n' + '<strong>Tests Failed: </strong>' + testResult.result.summary.failing + ' (' + testResult.result.summary.failRate + ')';
+          let failedTests = new Array();
+          let coverageApexClasses = new Array();
 
-                              let failedTests = new Array();
-          let coverageApexClasses = testResult.result.coverage.coverage;
+          // Calculate Code Coverage
+          this.ux.startSpinner('Calculate code coverage');
+          let globalNumLines = 0;
+          let globalNumLinesNotCovered = 0;
+          let mapCoverageByClass = new Map<string, number>();
+          for(let codeCoverageObj of testResult.result.details.runTestResult.codeCoverage){
+            globalNumLines += codeCoverageObj.numLocations;
+            globalNumLinesNotCovered += codeCoverageObj.numLocationsNotCovered;
 
-          for(let test of testResult.result.tests){
-            if(test.Outcome == 'Fail' || test.Outcome == 'CompileFail'){
+            let currentCoverage = Math.round((1 - (codeCoverageObj.numLocationsNotCovered / codeCoverageObj.numLocations)) * 100);
+            mapCoverageByClass.set(codeCoverageObj.name, currentCoverage);
+
+            let currentClass = {
+              name: codeCoverageObj.name,
+              coverage: currentCoverage
+            };
+            coverageApexClasses.push(currentClass);
+          }
+          let globalCoverage = Math.round((1 - (globalNumLinesNotCovered / globalNumLines)) * 100);
+          this.ux.stopSpinner('done');
+
+          // Generate Global information
+          let status = testResult.result.numberTestErrors > 0 ? 'Failed' : 'Passed';
+          let statusColor = status == 'Passed' ? 'green' : 'red';
+          let summaryTitle = 'Test Execution in ' + this.flags.env + ' - ' + testResult.result.startDate;
+          let summaryContent = '<strong>TestRunId: </strong>' + testResult.result.id + ' (Execution Time: ' + this.formatMilliseconds(testResult.result.details.runTestResult.totalTime) + ')'
+                              + '\n\n' + '<strong>Status: </strong><span style="color:' + statusColor + ';">' + status + '</span>'
+                              + '\n\n' + '<strong>Code Coverage: </strong>' + globalCoverage + '%'
+                              + '\n\n' + '<strong>Tests Ran: </strong>' + testResult.result.numberTestsTotal
+                              + '\n\n' + '<strong>Tests Passed: </strong>' + testResult.result.numberTestsCompleted
+                              + '\n\n' + '<strong>Tests Failed: </strong>' + testResult.result.numberTestErrors;
+
+          
+
+          for(let test of testResult.result.details.runTestResult.failures){
+              test.coverage = mapCoverageByClass.get(test.name);
               failedTests.push(test);
-            }
           }
 
           // Create files
@@ -147,17 +171,17 @@ export default class Teams extends SfdxCommand {
 
           // Sort
           failedTests.sort((obj1, obj2) => {
-            if (obj1.FullName > obj2.FullName) {
+            if (obj1.name > obj2.name) {
                 return 1;
-            }if (obj1.FullName < obj2.FullName) {
+            }if (obj1.name < obj2.name) {
                 return -1;
             }
             return 0;
           });
           coverageApexClasses.sort((obj1, obj2) => {
-            if (obj1.FullName > obj2.FullName) {
+            if (obj1.name > obj2.name) {
                 return 1;
-            }if (obj1.FullName < obj2.FullName) {
+            }if (obj1.name < obj2.name) {
                 return -1;
             }
             return 0;
@@ -178,7 +202,7 @@ export default class Teams extends SfdxCommand {
               break; 
             } 
           } 
-          this.ux.stopSpinner('Done!');
+          this.ux.stopSpinner('done');
 
           // Generate URLs
           let failedTestsUrl = this.flags.hosturl.toString().concat(failTestFilePath);
