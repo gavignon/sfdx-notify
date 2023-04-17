@@ -64,6 +64,10 @@ export default class Teams extends SfdxCommand {
   }
 
   private formatMilliseconds(milliseconds){
+    if(milliseconds == 0){
+      return '0s';
+    }
+
     let seconds = Math.floor((milliseconds / 1000) % 60);
     let minutes = Math.floor((milliseconds / (1000 * 60)) % 60);
     let hours = Math.floor((milliseconds / (1000 * 60 * 60)) % 24);
@@ -146,13 +150,23 @@ export default class Teams extends SfdxCommand {
             coverageApexClasses.push(currentClass);
           }
           let globalCoverage = Math.round((1 - (globalNumLinesNotCovered / globalNumLines)) * 100);
+          if(globalNumLines == 0){
+            globalCoverage = 0;
+          }
+
           this.ux.stopSpinner('done');
+
+          let formattedDate = new Date(testResult.result.startDate).toLocaleString('fr-FR', { timeZone: 'CET' });
+          let createdDate = new Date(testResult.result.createdDate);
+          let completedDate = new Date(testResult.result.completedDate);
+          let executionTime = this.formatMilliseconds(completedDate.getTime() - createdDate.getTime());
+
 
           // Generate Global information
           let status = testResult.result.numberTestErrors > 0 ? 'Failed' : 'Passed';
           let statusColor = status == 'Passed' ? 'green' : 'red';
-          let summaryTitle = 'Test Execution in ' + this.flags.env + ' - ' + testResult.result.startDate;
-          let summaryContent = '<strong>TestRunId: </strong>' + testResult.result.id + ' (Execution Time: ' + this.formatMilliseconds(testResult.result.details.runTestResult.totalTime) + ')'
+          let summaryTitle = 'Test Execution in ' + this.flags.env + ' - ' + formattedDate;
+          let summaryContent = '<strong>DeploymentId: </strong>' + testResult.result.id + ' (Execution Time: ' + executionTime + ')'
                               + '\n\n' + '<strong>Status: </strong><span style="color:' + statusColor + ';">' + status + '</span>'
                               + '\n\n' + '<strong>Code Coverage: </strong>' + globalCoverage + '%'
                               + '\n\n' + '<strong>Tests Ran: </strong>' + testResult.result.numberTestsTotal
@@ -252,7 +266,7 @@ export default class Teams extends SfdxCommand {
 
           this.ux.startSpinner('Notify deployment status on Microsoft Teams');
           await HttpClient.sendRequest(this.flags.url.toString(), data);
-          this.ux.stopSpinner('Done!');
+          this.ux.stopSpinner('done');
         }catch(error){
           throw error;
         }
